@@ -1,0 +1,6 @@
+{
+  "LandRegistry": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "network": "ganache",
+  "chainId": 1337,
+  "deployedAt": "2026-10-01T00:00:00.000Z"
+}

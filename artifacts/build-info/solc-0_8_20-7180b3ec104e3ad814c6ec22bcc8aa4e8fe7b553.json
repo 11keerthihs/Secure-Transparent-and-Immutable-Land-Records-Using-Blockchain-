@@ -1,0 +1,47 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_20-7180b3ec104e3ad814c6ec22bcc8aa4e8fe7b553",
+  "solcVersion": "0.8.20",
+  "solcLongVersion": "0.8.20+commit.a1b79de6",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/LandRegistry.sol": "project/contracts/LandRegistry.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": [],
+      "viaIR": true
+    },
+    "sources": {
+      "project/contracts/LandRegistry.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\n/**\n * @title LandRegistry\n * @dev Immutable Land Record Management smart contract for registering,\n * updating, verifying, and transferring land records on an Ethereum-compatible network.\n */\ncontract LandRegistry {\n    // Government / Contract Deployer\n    address public owner;\n    uint256 public nextId;\n\n    // Land structure containing official registration records\n    struct Land {\n        uint256 id;\n        string parcelId;\n        string surveyNumber;\n        string plotNumber;\n        string state;\n        string district;\n        string taluka;\n        string village;\n        string addressLine;\n        string landUse;\n        uint256 area;\n        string areaUnit;\n        string coordinates;\n        string ownerName;\n        string ownerGovId;      // Stored as SHA-256 hash or normalized identifier\n        string documentHash;    // SHA-256 cryptographic digest of deed / deed papers\n        uint256 marketValue;\n        uint256 registrationDate;\n        string status;          // \"VERIFIED\", \"PENDING_TRANSFER\", \"TRANSFERRED\"\n        bool exists;\n    }\n\n    // Mapping from land ID to Land record\n    mapping(uint256 => Land) private lands;\n    // Array of land IDs for enumeration\n    uint256[] private landIds;\n\n    // Events\n    event LandRegistered(\n        uint256 indexed id,\n        string parcelId,\n        string ownerName,\n        string documentHash,\n        uint256 timestamp\n    );\n\n    event LandUpdated(\n        uint256 indexed id,\n        string parcelId,\n        string ownerName,\n        uint256 marketValue,\n        string status,\n        uint256 timestamp\n    );\n\n    event LandOwnershipTransferred(\n        uint256 indexed id,\n        string previousOwnerGovId,\n        string newOwnerName,\n        string newOwnerGovId,\n        uint256 newMarketValue,\n        uint256 timestamp\n    );\n\n    event LandDeleted(\n        uint256 indexed id,\n        string parcelId,\n        uint256 timestamp\n    );\n\n    // Modifier to restrict write operations to Government / Authority deployer\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Only authorized government authority can perform this action\");\n        _;\n    }\n\n    constructor() {\n        owner = msg.sender;\n        nextId = 1;\n    }\n\n    /**\n     * @notice Registers a new land record on the blockchain\n     */\n    function addLand(\n        string memory _parcelId,\n        string memory _surveyNumber,\n        string memory _plotNumber,\n        string memory _state,\n        string memory _district,\n        string memory _taluka,\n        string memory _village,\n        string memory _addressLine,\n        string memory _landUse,\n        uint256 _area,\n        string memory _areaUnit,\n        string memory _coordinates,\n        string memory _ownerName,\n        string memory _ownerGovId,\n        string memory _documentHash,\n        uint256 _marketValue,\n        uint256 _registrationDate,\n        string memory _status\n    ) external onlyOwner returns (uint256) {\n        require(bytes(_parcelId).length > 0, \"Parcel ID cannot be empty\");\n        require(bytes(_documentHash).length > 0, \"Document hash cannot be empty\");\n        require(bytes(_ownerName).length > 0, \"Owner name cannot be empty\");\n\n        uint256 currentId = nextId;\n        nextId++;\n\n        lands[currentId] = Land({\n            id: currentId,\n            parcelId: _parcelId,\n            surveyNumber: _surveyNumber,\n            plotNumber: _plotNumber,\n            state: _state,\n            district: _district,\n            taluka: _taluka,\n            village: _village,\n            addressLine: _addressLine,\n            landUse: _landUse,\n            area: _area,\n            areaUnit: _areaUnit,\n            coordinates: _coordinates,\n            ownerName: _ownerName,\n            ownerGovId: _ownerGovId,\n            documentHash: _documentHash,\n            marketValue: _marketValue,\n            registrationDate: _registrationDate > 0 ? _registrationDate : block.timestamp,\n            status: bytes(_status).length > 0 ? _status : \"VERIFIED\",\n            exists: true\n        });\n\n        landIds.push(currentId);\n\n        emit LandRegistered(currentId, _parcelId, _ownerName, _documentHash, block.timestamp);\n        return currentId;\n    }\n\n    /**\n     * @notice Updates existing land metadata\n     */\n    function updateLand(\n        uint256 _id,\n        string memory _landUse,\n        uint256 _marketValue,\n        string memory _status,\n        string memory _documentHash\n    ) external onlyOwner {\n        require(lands[_id].exists, \"Land record does not exist\");\n\n        Land storage land = lands[_id];\n        land.landUse = _landUse;\n        land.marketValue = _marketValue;\n        land.status = _status;\n        if (bytes(_documentHash).length > 0) {\n            land.documentHash = _documentHash;\n        }\n\n        emit LandUpdated(_id, land.parcelId, land.ownerName, _marketValue, _status, block.timestamp);\n    }\n\n    /**\n     * @notice Transfers ownership record after government verification\n     */\n    function transferOwnershipRecord(\n        uint256 _id,\n        string memory _newOwnerName,\n        string memory _newOwnerGovId,\n        uint256 _newMarketValue,\n        string memory _newDocumentHash\n    ) external onlyOwner {\n        require(lands[_id].exists, \"Land record does not exist\");\n        require(bytes(_newOwnerName).length > 0, \"New owner name required\");\n        require(bytes(_newOwnerGovId).length > 0, \"New owner Gov ID required\");\n\n        Land storage land = lands[_id];\n        string memory previousGovId = land.ownerGovId;\n\n        land.ownerName = _newOwnerName;\n        land.ownerGovId = _newOwnerGovId;\n        if (_newMarketValue > 0) {\n            land.marketValue = _newMarketValue;\n        }\n        if (bytes(_newDocumentHash).length > 0) {\n            land.documentHash = _newDocumentHash;\n        }\n        land.status = \"VERIFIED\";\n\n        emit LandOwnershipTransferred(\n            _id,\n            previousGovId,\n            _newOwnerName,\n            _newOwnerGovId,\n            _newMarketValue,\n            block.timestamp\n        );\n    }\n\n    /**\n     * @notice Marks a land record as deleted\n     */\n    function deleteLand(uint256 _id) external onlyOwner {\n        require(lands[_id].exists, \"Land record does not exist\");\n        string memory parcel = lands[_id].parcelId;\n        lands[_id].exists = false;\n        emit LandDeleted(_id, parcel, block.timestamp);\n    }\n\n    /**\n     * @notice Retrieves a single land record by ID\n     */\n    function getLand(uint256 _id) external view returns (Land memory) {\n        require(lands[_id].exists, \"Land record does not exist\");\n        return lands[_id];\n    }\n\n    /**\n     * @notice Returns all active land records\n     */\n    function getAllLands() external view returns (Land[] memory) {\n        uint256 total = 0;\n        for (uint256 i = 0; i < landIds.length; i++) {\n            if (lands[landIds[i]].exists) {\n                total++;\n            }\n        }\n\n        Land[] memory activeLands = new Land[](total);\n        uint256 currentIndex = 0;\n        for (uint256 i = 0; i < landIds.length; i++) {\n            if (lands[landIds[i]].exists) {\n                activeLands[currentIndex] = lands[landIds[i]];\n                currentIndex++;\n            }\n        }\n        return activeLands;\n    }\n\n    /**\n     * @notice Total number of registered lands created\n     */\n    function getTotalCount() external view returns (uint256) {\n        return landIds.length;\n    }\n}\n"
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Immutable Land Record Management Using Blockchain Technology",
+  "description": "A decentralized, tamper-proof land registry system powered by Ethereum smart contracts, SHA-256 cryptographic document verification, and role-based access control for Governments and Citizens.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
